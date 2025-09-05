@@ -23,8 +23,8 @@ No build. No npm. No bookmarklet. Just a snippet.
 
 ## Quick start (DevTools Snippet)
 
-1. Open **Chrome DevTools → Sources → Snippets → New Snippet**  
-2. Name it `class-origin-tracer` and paste the contents of [`src/class-origin-tracer.js`](src/class-origin-tracer.js).  
+1. Open **Chrome DevTools → Sources → (left panel) Snippets → New Snippet**  
+2. Name it `class-origin-tracer.js` and paste the contents of [`src/class-origin-tracer.js`](src/class-origin-tracer.js).  
 3. Click **Run (▶)**.  
 4. Optional: run `__TRACEv17.debug()` in the Console to also print the origin stack.
 
@@ -88,6 +88,6 @@ PRs welcome! Please:
 
 - add a short Console screenshot for repros when filing issues.
 
-## 라이선스
+## LICENSE
 
 [MIT LICENSE](LICENSE)
