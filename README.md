@@ -15,7 +15,7 @@ Traces **who changed your DOM classes** and where it happened.
 - **Hooks:** `DOMTokenList.add/remove/toggle`, `Element.setAttribute('class', ...)`, the `className` setter, and jQuery’s `addClass` / `removeClass` / `toggleClass` / `attr('class')` / `prop('className')`.
 - **Docs:** **[CLASS_README.md](CLASS_README.md)**  
 - **Source:** [`src/class-origin-tracer.js`](src/class-origin-tracer.js)  
-- **Demo:** ![demo](docs/demo.gif)
+- **Demo:** ![demo](docs/demo-class.gif)
 
 ---
 
