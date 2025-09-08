@@ -20,7 +20,7 @@ Class-change origin tracer v17-min — minimal UX (origin only), toggleable deta
   // ── per-element operation buffer
   const OPS = new WeakMap();
 
-  // map DOMTokenList -> owning Element (ownerElement가 없는 브라우저 대비)
+  // map DOMTokenList -> owning Element
   const CL2EL = new WeakMap();
 
   function pushOp(el, rec) {
@@ -39,94 +39,157 @@ Class-change origin tracer v17-min — minimal UX (origin only), toggleable deta
     if (arr.length > CFG.perElMax) arr.shift();
   }
 
-  // ── callsite picker (VM/eval 우선, same/virtual/code-looking 우선)
-  function pickCallsite(stack) {
-    if (!stack) return null;
+  // ── callsite picker (VM/eval first, same/virtual/code-looking second)
+	function pickCallsite(stack) {
+	  if (!stack) return null;
 
-    const L = stack.split("\n").map(s => s.trim());
-    const host = location.host;
+	  const L = stack.split("\n").map(s => s.trim());
+	  const host = location.host;
 
-    // ( …url…:LINE:COL )
-    const RE_PAREN = /\(([^)\s]+):(\d+):(\d+)\)\s*$/;
-    // …url…:LINE:COL  (괄호 없음; webpack/bare 포맷)
-    const RE_BARE  = /(?:^|\s)([^()\s]+):(\d+):(\d+)\s*$/;
+	  // ( …url…:LINE:COL )
+	  const RE_PAREN = /\(([^)\s]+):(\d+):(\d+)\)\s*$/;
+	  // …url…:LINE:COL  (괄호 없음; webpack/bare format)
+	  const RE_BARE  = /(?:^|\s)([^()\s]+):(\d+):(\d+)\s*$/;
 
-    // virtual/bundle schemes
-    const VIRTUAL = /^(webpack|webpack-internal|rollup|vite|parcel|ng|blob|file|node):/i;
+	  // DevTools VM format
+	  // 1) "VM123 file.js:LINE:COL"
+	  const RE_VM_WITH_FILE = /VM\d+\s+([^\s)]+):(\d+):(\d+)\)?$/;
+	  // 2) "VM123:LINE:COL" (no filename)
+	  const RE_VM_SIMPLE    = /(VM\d+):(\d+):(\d+)\)?$/;
 
-    // skip noise (self/devtools/extensions/jquery core)
-    const SELF_NAME = "class-origin-tracer.js";
-    const ESC = s => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const SKIP = new RegExp(
-      [
-        "chrome-extension:",
-        "extensions::",
-        "snippet:\\/\\/",
-        "__TRACEv1[0-9]",
-        // jQuery core / migrate (플러그인은 스킵하지 않음)
-        "(?:^|\\/)(?:jquery(?:-\\d+\\.\\d+\\.\\d+)?(?:\\.slim)?|jquery(?:\\.slim)?|jquery(?:[.-]migrate)(?:-\\d+\\.\\d+\\.\\d+)?)" +
-          "(?:\\.min)?\\.js(?:[?#].*)?$",
-        ESC(SELF_NAME),
-      ].join("|"),
-      "i"
-    );
+	  // virtual/bundle schemes
+	  const VIRTUAL = /^(webpack|webpack-internal|rollup|vite|parcel|ng|blob|file|node):/i;
 
-    const frames = [];
+	  // skip self/noise
+	  const SELF_FILES = [
+		"class-origin-tracer.js",
+		"child-origin-tracer.js",
+	  ];
+	  const ESC = s => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-    // 0: Error, 1: 내부 — 보통 2부터 유의미
-    for (let i = 2; i < L.length; i++) {
-      const ln = L[i];
+	  // jQuery core / migrate (플러그인은 허용)
+	  // (경계에 슬래시가 없어도 매치되도록 [\/\s]? 사용)
+	  const RE_JQ_CORE = new RegExp(
+		String.raw`[\/\s]?jquery(?:-\d+\.\d+\.\d+)?(?:\.slim)?|jquery(?:\.slim)?|jquery(?:[.-]migrate)(?:-\d+\.\d+\.\d+)?`,
+		"i"
+	  );
+	  const RE_JQ_CORE_FILE = /\.js(?:[?#].*)?$/i;
 
-      // eval / <anonymous>
-      if (/^at (eval|<anonymous>)/.test(ln)) {
-        frames.push({ url: "<eval/anonymous>", line: 0, col: 0, raw: ln, vm: true });
-        continue;
-      }
+	  const RE_SKIP_LINE = new RegExp(
+		[
+		  "chrome-extension:",
+		  "extensions::",   // DevTools-internal
+		  "snippet:\\/\\/",
+		  "__TRACEv1[0-9]", // tracer globals
+		  ...SELF_FILES.map(ESC),
+		].join("|"),
+		"i"
+	  );
 
-      // Chrome DevTools VMNN:LINE:COL
-      if (/ VM\d+:/.test(ln)) {
-        const m = ln.match(/(VM\d+):(\d+):(\d+)\)?$/);
-        if (m) frames.push({ url: m[1], line: +m[2], col: +m[3], raw: ln, vm: true });
-        continue;
-      }
+	  const frames = [];
 
-      if (SKIP.test(ln)) continue;
+	  // 0: Error, 1: 내부 — 보통 2부터 유의미
+	  for (let i = 2; i < L.length; i++) {
+		const ln = L[i];
+		if (RE_SKIP_LINE.test(ln)) continue;
 
-      const m = ln.match(RE_PAREN) || ln.match(RE_BARE);
-      if (!m) continue;
+		let isEvalAnon = false;
+		if (/^at (eval|<anonymous>)/.test(ln)) isEvalAnon = true;
 
-      const url  = m[1];
-      const line = +m[2];
-      const col  = +m[3];
+		// VMNN file.js:LINE:COL
+		let m = ln.match(RE_VM_WITH_FILE);
+		if (m) {
+		  const url  = m[1];
+		  const line = +m[2];
+		  const col  = +m[3];
 
-      const isVirtual  = VIRTUAL.test(url);        // webpack-internal://…, blob:, file:, …
-      const isRelative = !/^[a-z]+:/i.test(url);   // ./src/…
-      const sameHost   = url.includes(host);       // http(s) only
-      const looksCode  = /\.(m?js|cjs|jsx|ts|tsx)(?:\?|#|$)/i.test(url);
+		  // jQuery core 파일 스킵
+		  if (RE_JQ_CORE.test(url) && RE_JQ_CORE_FILE.test(url)) continue;
+		  // 자기 자신 파일 스킵
+		  if (SELF_FILES.some(f => url.toLowerCase().includes(f.toLowerCase()))) continue;
 
-      frames.push({
-        url, line, col, raw: ln,
-        vm: false,
-        same: sameHost || isVirtual || isRelative,
-        code: looksCode || isVirtual
-      });
-    }
+		  const isVirtual  = true;                    // VM 컨텍스트는 virtual 성격
+		  const isRelative = !/^[a-z]+:/i.test(url);  // ./src/…
+		  const sameHost   = url.includes(host);
+		  const looksCode  = /\.(m?js|cjs|jsx|ts|tsx|jsp)(?:\?|#|$)/i.test(url);
 
-    if (!frames.length) return null;
+		  frames.push({
+			url, line, col, raw: ln,
+			vm: true,
+			evalAnon: isEvalAnon,
+			same: sameHost || isVirtual || isRelative,
+			code: looksCode || isVirtual
+		  });
+		  continue;
+		}
 
-    // VM/eval 최우선
-    const vm = frames.find(f => f.vm);
-    if (vm) return { url: vm.url, line: vm.line, col: vm.col, raw: vm.raw, vm: true };
+		// 순수 VMNN:LINE:COL — 파일명 정보 없음 (약한 힌트)
+		m = ln.match(RE_VM_SIMPLE);
+		if (m) {
+		  const url  = m[1];
+		  const line = +m[2];
+		  const col  = +m[3];
+		  frames.push({
+			url, line, col, raw: ln,
+			vm: true,
+			evalAnon: isEvalAnon,
+			same: true,
+			code: true,
+			weak: true,
+		  });
+		  continue;
+		}
 
-    // same + code-looking 우선 정렬
-    frames.sort((a, b) =>
-      ((b.same ? 2 : 0) + (b.code ? 1 : 0)) -
-      ((a.same ? 2 : 0) + (a.code ? 1 : 0))
-    );
+		// 일반 ( …url…:line:col ) 또는 bare 포맷
+		m = ln.match(RE_PAREN) || ln.match(RE_BARE);
+		if (!m) continue;
 
-    const f = frames[0];
-    return { url: f.url, line: f.line, col: f.col, raw: f.raw, vm: false };
-  }
+		const url  = m[1];
+		const line = +m[2];
+		const col  = +m[3];
+
+		// jQuery core 파일 스킵
+		if ((RE_JQ_CORE.test(url) && RE_JQ_CORE_FILE.test(url))) continue;
+		// 자기 자신 파일 스킵
+		if (SELF_FILES.some(f => url.toLowerCase().includes(f.toLowerCase()))) continue;
+
+		const isVirtual  = VIRTUAL.test(url);        // webpack-internal://…, blob:, file:, …
+		const isRelative = !/^[a-z]+:/i.test(url);   // ./src/…
+		const sameHost   = url.includes(host);       // http(s) only
+		const looksCode  = /\.(m?js|cjs|jsx|ts|tsx|jsp)(?:\?|#|$)/i.test(url);
+
+		frames.push({
+		  url, line, col, raw: ln,
+		  vm: false,
+		  evalAnon: isEvalAnon,
+		  same: sameHost || isVirtual || isRelative,
+		  code: looksCode || isVirtual
+		});
+	  }
+
+	  if (!frames.length) return null;
+
+	  // 점수화: same(4) + code(2) + (!weak) + (!evalAnon)
+	  function weight(f) {
+		let w = 0;
+		if (f.same) w += 4;
+		if (f.code) w += 2;
+		if (!f.weak) w += 1;
+		if (f.evalAnon) w -= 6;    // eval/<anonymous>는 강한 패널티
+		return w;
+	  }
+
+	  // (중요) 더 이상 "vm을 무조건 우선 반환"하지 않는다.
+	  frames.sort((a, b) => {
+		const dw = weight(b) - weight(a);
+		if (dw) return dw;
+		return 0; // 동점이면 상대적 순위 유지(상위 프레임 우선)
+	  });
+
+	  const f = frames[0];
+	  return { url: f.url, line: f.line, col: f.col, raw: f.raw, vm: !!f.vm };
+	}
+
 
   function cssPath(el) {
     try {
