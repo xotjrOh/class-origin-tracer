@@ -11,7 +11,7 @@ Class-change origin tracer v17-min — minimal UX (origin only), toggleable deta
     windowMs: 1200,
     perElMax: 24,
     verbose: false,          // show match table/buffer in console
-    showStacks: "none",      // 'none' | 'origin' (in debug mode, print origin stack only)
+    showStacks: "none",      // 'none' | 'origin' (debug prints origin stack)
     ctxLines: 2,
   };
 
@@ -19,10 +19,17 @@ Class-change origin tracer v17-min — minimal UX (origin only), toggleable deta
 
   // ── per-element operation buffer
   const OPS = new WeakMap();
+
+  // map DOMTokenList -> owning Element (ownerElement가 없는 브라우저 대비)
+  const CL2EL = new WeakMap();
+
   function pushOp(el, rec) {
+    if (!el || typeof el !== "object") return;
+
     const s = rec.site;
     if (!s || !s.url) return;
     if (/snippet:\/\/|chrome-extension:|extensions::/i.test(s.url)) return;
+
     let arr = OPS.get(el);
     if (!arr) {
       arr = [];
@@ -32,84 +39,93 @@ Class-change origin tracer v17-min — minimal UX (origin only), toggleable deta
     if (arr.length > CFG.perElMax) arr.shift();
   }
 
-  // ── callsite picker (prefer VM/eval; otherwise prefer same-origin .js)
+  // ── callsite picker (VM/eval 우선, same/virtual/code-looking 우선)
   function pickCallsite(stack) {
     if (!stack) return null;
-    const L = stack.split("\n").map((s) => s.trim());
+
+    const L = stack.split("\n").map(s => s.trim());
     const host = location.host;
-    const reUrl = /(https?:\/\/[^\s)]+):(\d+):\d+\)?$/;
-    const reParen = /\((https?:\/\/[^\s)]+):(\d+):\d+\)\s*$/;
 
-    // Skip this file to avoid falsely picking self as the callsite
+    // ( …url…:LINE:COL )
+    const RE_PAREN = /\(([^)\s]+):(\d+):(\d+)\)\s*$/;
+    // …url…:LINE:COL  (괄호 없음; webpack/bare 포맷)
+    const RE_BARE  = /(?:^|\s)([^()\s]+):(\d+):(\d+)\s*$/;
+
+    // virtual/bundle schemes
+    const VIRTUAL = /^(webpack|webpack-internal|rollup|vite|parcel|ng|blob|file|node):/i;
+
+    // skip noise (self/devtools/extensions/jquery core)
     const SELF_NAME = "class-origin-tracer.js";
-    const ESC = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
-	const SKIP = new RegExp(
-	  [
-		"chrome-extension:",
-		"extensions::",
-		"snippet:\\/\\/",
-		"__TRACEv1[0-9]",
-		// jQuery core only:
-		// - jquery(.min).js
-		// - jquery-<ver>(.slim)?(.min).js
-		// - jquery.slim(.min).js
-		// - jquery-migrate(.min).js
-		// - jquery-migrate-<ver>(.min).js
-		"(?:^|\\/)(?:" +
-		  "jquery(?:-\\d+\\.\\d+\\.\\d+)?(?:\\.slim)?|" +     // jquery, versioned, slim
-		  "jquery(?:\\.slim)?|" +                              // jquery.slim
-		  "jquery(?:[.-]migrate)(?:-\\d+\\.\\d+\\.\\d+)?" +    // jquery.migrate / jquery-migrate with optional version
-		")(?:\\.min)?\\.js(?:[?#].*)?$",
-		ESC(SELF_NAME),
-	  ].join("|"),
-	  "i"
-	);
+    const ESC = s => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const SKIP = new RegExp(
+      [
+        "chrome-extension:",
+        "extensions::",
+        "snippet:\\/\\/",
+        "__TRACEv1[0-9]",
+        // jQuery core / migrate (플러그인은 스킵하지 않음)
+        "(?:^|\\/)(?:jquery(?:-\\d+\\.\\d+\\.\\d+)?(?:\\.slim)?|jquery(?:\\.slim)?|jquery(?:[.-]migrate)(?:-\\d+\\.\\d+\\.\\d+)?)" +
+          "(?:\\.min)?\\.js(?:[?#].*)?$",
+        ESC(SELF_NAME),
+      ].join("|"),
+      "i"
+    );
 
     const frames = [];
+
+    // 0: Error, 1: 내부 — 보통 2부터 유의미
     for (let i = 2; i < L.length; i++) {
       const ln = L[i];
 
-      // Prefer VM/eval frames first
+      // eval / <anonymous>
       if (/^at (eval|<anonymous>)/.test(ln)) {
-        frames.push({ url: "<eval/anonymous>", line: 0, raw: ln, vm: true });
-        continue;
-      }
-      if (/ VM\d+:/.test(ln)) {
-        const m = ln.match(/(VM\d+):(\d+):\d+\)?$/);
-        if (m) frames.push({ url: m[1], line: +m[2], raw: ln, vm: true });
+        frames.push({ url: "<eval/anonymous>", line: 0, col: 0, raw: ln, vm: true });
         continue;
       }
 
-      // Skip noisy frames
+      // Chrome DevTools VMNN:LINE:COL
+      if (/ VM\d+:/.test(ln)) {
+        const m = ln.match(/(VM\d+):(\d+):(\d+)\)?$/);
+        if (m) frames.push({ url: m[1], line: +m[2], col: +m[3], raw: ln, vm: true });
+        continue;
+      }
+
       if (SKIP.test(ln)) continue;
 
-      // Extract URL + line number
-      const m = ln.match(reParen) || ln.match(reUrl);
+      const m = ln.match(RE_PAREN) || ln.match(RE_BARE);
       if (!m) continue;
-      const url = m[1], line = +m[2];
+
+      const url  = m[1];
+      const line = +m[2];
+      const col  = +m[3];
+
+      const isVirtual  = VIRTUAL.test(url);        // webpack-internal://…, blob:, file:, …
+      const isRelative = !/^[a-z]+:/i.test(url);   // ./src/…
+      const sameHost   = url.includes(host);       // http(s) only
+      const looksCode  = /\.(m?js|cjs|jsx|ts|tsx)(?:\?|#|$)/i.test(url);
 
       frames.push({
-        url,
-        line,
-        same: url.includes(host),
-        js: /\.js(\?|#|$)/i.test(url),
-        raw: ln,
+        url, line, col, raw: ln,
+        vm: false,
+        same: sameHost || isVirtual || isRelative,
+        code: looksCode || isVirtual
       });
     }
+
     if (!frames.length) return null;
 
-    // Prefer VM/eval frames first
-    const vm = frames.find((f) => f.vm);
-    if (vm) return { url: vm.url, line: vm.line, raw: vm.raw, vm: true };
+    // VM/eval 최우선
+    const vm = frames.find(f => f.vm);
+    if (vm) return { url: vm.url, line: vm.line, col: vm.col, raw: vm.raw, vm: true };
 
-    // Rank: prefer same-origin .js
-    frames.sort(
-      (a, b) =>
-        (b.same ? 2 : 0) + (b.js ? 1 : 0) - ((a.same ? 2 : 0) + (a.js ? 1 : 0)),
+    // same + code-looking 우선 정렬
+    frames.sort((a, b) =>
+      ((b.same ? 2 : 0) + (b.code ? 1 : 0)) -
+      ((a.same ? 2 : 0) + (a.code ? 1 : 0))
     );
+
     const f = frames[0];
-    return { url: f.url, line: f.line, raw: f.raw, vm: false };
+    return { url: f.url, line: f.line, col: f.col, raw: f.raw, vm: false };
   }
 
   function cssPath(el) {
@@ -149,19 +165,43 @@ Class-change origin tracer v17-min — minimal UX (origin only), toggleable deta
 
   // ── DOM/jQuery hooks
   (function hookDOM() {
+    // classList getter를 래핑하여 CL2EL 맵 유지
+    function hookClassListGetter(proto) {
+      if (!proto) return;
+      const d = Object.getOwnPropertyDescriptor(proto, "classList");
+      if (!d || !d.get || d.__wrapped) return;
+      const get0 = d.get;
+      Object.defineProperty(proto, "classList", {
+        configurable: true,
+        get: function () {
+          const list = get0.call(this);
+          try { CL2EL.set(list, this); } catch {}
+          return list;
+        },
+      });
+      Object.defineProperty(proto, "classList", {
+        ...Object.getOwnPropertyDescriptor(proto, "classList"),
+        __wrapped: true,
+      });
+    }
+    hookClassListGetter(HTMLElement.prototype);
+    if (Element.prototype !== HTMLElement.prototype) hookClassListGetter(Element.prototype);
+    if (window.SVGElement && SVGElement.prototype) hookClassListGetter(SVGElement.prototype);
+
     const DL = DOMTokenList.prototype;
     const add0 = DL.add, rem0 = DL.remove, tog0 = DL.toggle;
 
     DL.add = function () {
       try {
         const raw = new Error().stack;
-        pushOp(this.ownerElement, {
+        const el = this.ownerElement || CL2EL.get(this);
+        pushOp(el, {
           t: now(),
           kind: "classList.add",
           sign: "+",
           classes: [...arguments],
           site: pickCallsite(raw),
-          stackRaw: raw, // In debug mode, emit origin stack only
+          stackRaw: raw,
         });
       } catch {}
       return add0.apply(this, arguments);
@@ -170,7 +210,8 @@ Class-change origin tracer v17-min — minimal UX (origin only), toggleable deta
     DL.remove = function () {
       try {
         const raw = new Error().stack;
-        pushOp(this.ownerElement, {
+        const el = this.ownerElement || CL2EL.get(this);
+        pushOp(el, {
           t: now(),
           kind: "classList.remove",
           sign: "-",
@@ -185,7 +226,8 @@ Class-change origin tracer v17-min — minimal UX (origin only), toggleable deta
     DL.toggle = function () {
       try {
         const raw = new Error().stack;
-        pushOp(this.ownerElement, {
+        const el = this.ownerElement || CL2EL.get(this);
+        pushOp(el, {
           t: now(),
           kind: "classList.toggle",
           sign: "?",
@@ -263,8 +305,7 @@ Class-change origin tracer v17-min — minimal UX (origin only), toggleable deta
       });
     }
     wrapClassName(HTMLElement.prototype);
-    if (Element.prototype !== HTMLElement.prototype)
-      wrapClassName(Element.prototype);
+    if (Element.prototype !== HTMLElement.prototype) wrapClassName(Element.prototype);
   })();
 
   (function hookJQ(jq) {
@@ -408,7 +449,9 @@ Class-change origin tracer v17-min — minimal UX (origin only), toggleable deta
 
   function logOrigin(o) {
     const vmTag = o.site?.vm ? " [vm]" : "";
-    const at = o.site ? `@ ${o.site.url}:${o.site.line}${vmTag}` : "(site?)";
+    const at = o.site
+      ? `@ ${o.site.url}:${o.site.line}${o.site.col != null ? ":" + o.site.col : ""}${vmTag}`
+      : "(site?)";
     console.groupCollapsed(
       `%corigin %s %s`,
       "color:#0af",
@@ -429,7 +472,7 @@ Class-change origin tracer v17-min — minimal UX (origin only), toggleable deta
       classes: (r.classes || []).join(" "),
       age_ms: Math.round(now() - r.t),
       at: r.site
-        ? `${r.site.url}:${r.site.line}${r.site.vm ? " [vm]" : ""}`
+        ? `${r.site.url}:${r.site.line}${r.site.col != null ? ":" + r.site.col : ""}${r.site.vm ? " [vm]" : ""}`
         : "(none)",
       score: Math.round(sc),
     }));
@@ -510,7 +553,7 @@ Class-change origin tracer v17-min — minimal UX (origin only), toggleable deta
           sign: x.sign,
           classes: (x.classes || []).join(" "),
           at: x.site
-            ? `${x.site.url}:${x.site.line}${x.site.vm ? " [vm]" : ""}`
+            ? `${x.site.url}:${x.site.line}${x.site.col != null ? ":" + x.site.col : ""}${x.site.vm ? " [vm]" : ""}`
             : "(none)",
         })),
       );
