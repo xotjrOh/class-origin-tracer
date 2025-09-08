@@ -14,7 +14,8 @@ UI states “mysteriously” flicker: sliders, widgets, third-party scripts… Y
 
 - a readable CSS path of the target node,
 - what changed (`+added` / `-removed`),
-- the **best-guess origin** (VM/eval first, then same-origin `.js`),
+- the **best-guess origin** (VM/eval first, then same/virtual/code-looking frames, e.g., `webpack-internal://`, `blob:`, `file:`, relative paths),
+
 - (debug mode) the **origin stack**.
 
 No build. No npm. No bookmarklet. Just a snippet.
@@ -44,16 +45,16 @@ __TRACEv17.dump(el);              // dump per-element buffer for a node
 
 ## How it works (short)
 
-- Hooks: DOMTokenList.add/remove/toggle, Element.setAttribute('class', ...),
-the className setter, and jQuery’s addClass/removeClass/toggleClass/attr/prop.
+- Hooks: `DOMTokenList.add/remove/toggle`, `Element.setAttribute('class', ...)`,
+the `className` setter, and jQuery’s `addClass` / `removeClass` / `toggleClass` / `attr('class')` / `prop('className')`.
 
 - Keeps a per-element ring buffer of recent operations.
 
 - A MutationObserver watches real class mutations, then matches them to
 the most plausible recent operation (scored by API kind, sign, class names, and recency).
 
-- A callsite picker extracts a candidate frame from Error().stack
-(prefers VM/eval, then same-origin .js; skips DevTools/extension/jQuery core/self).
+- A callsite picker extracts a candidate frame from `Error().stack`
+(prefers VM/eval first, then same/virtual/code-looking frames such as `webpack-internal://`, `blob:`, `file:`, or relative paths; skips extension/devtools-internal (`extensions::`), `chrome-extension:` URLs, jQuery core, and self).
 
 > Privacy: nothing leaves your browser. It only logs to the Console.
 
@@ -66,15 +67,16 @@ const CFG = {
   perElMax: 24,       // max ops buffered per element
   verbose: false,     // print decision table
   showStacks: "none", // 'none' | 'origin' (debug prints origin stack)
+  ctxLines: 2,        // reserved for future context printing
 };
 ```
 
 ## Browser support & limits
-- Best on Chromium browsers (Chrome/Edge). Safari/Firefox may format stacks differently; origins still work but with lower resolution.
+- Best on Chromium browsers (Chrome/Edge). Firefox/Safari are experimental; stack parsing may fail more often due to different formats (the origin may be null or less precise).
 
 - Works in the current document only (not across iframes/other windows).
 
-- Skips jQuery core frames by design; jQuery plugins are not skipped (so bxSlider-like origins are visible).
+- Skips jQuery core frames by design (plugins are not skipped), and also skips `extensions::`, `chrome-extension:` URLs, and the snippet itself.
 
 - If a mutation has no matching frame, the log explains common reasons (initial render / iframe / eval / other window).
 
