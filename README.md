@@ -10,9 +10,10 @@ Console-only, zero-setup **DevTools snippets** to reveal **who changed your DOM*
 ## Snippets
 
 ### 1) `class-origin-tracer.js`
-Traces **who changed your DOM classes** and where it happened.
+Finds who toggled your classes and where.
 
-- **Hooks:** `DOMTokenList.add/remove/toggle`, `Element.setAttribute('class', ...)`, the `className` setter, and jQuery’s `addClass` / `removeClass` / `toggleClass` / `attr('class')` / `prop('className')`.
+- **Hooks:** `classList.*`, `setAttribute('class')`, `className` setter, SVG `baseVal`, jQuery `add/remove/toggleClass`, attr('class'), prop('className')
+- **Nice bits:** noise-killer (interval/RAF/timeout), repeat throttling, same-origin iframe auto-inject, optional bridge to top
 - **Docs:** **[CLASS_README.md](CLASS_README.md)**  
 - **Source:** [`src/class-origin-tracer.js`](src/class-origin-tracer.js)  
 - **Demo:** ![demo](docs/demo-class.gif)
@@ -20,9 +21,10 @@ Traces **who changed your DOM classes** and where it happened.
 ---
 
 ### 2) `child-origin-tracer.js`
-Traces **who added/removed DOM children** (append/prepend/before/after, remove, `inner/outerHTML`, jQuery DOM manipulation) and where it happened.
+Catches who added/removed children (append/prepend/before/after, remove, inner/outerHTML, jQuery DOM ops).
 
-- **Hooks:** `appendChild/insertBefore/removeChild/replaceChild`, `Element.append/prepend/before/after`, `ChildNode.remove`, `innerHTML` / `outerHTML`, and jQuery’s `append/prepend/before/after/html(set)/remove/detach/empty`.
+- **Hooks:** `append/insertBefore/remove/replaceChild`, `Element.append/prepend/before/after`, `ChildNode.remove`, `innerHTML/outerHTML`, jQuery `append/prepend/before/after/html/remove/detach/empty`
+- **Nice bits:** noise-killer + throttling, ‘+ / −’ 우선 매칭 with '?' as last-resort fallback, iframe auto-inject + bridge
 - **Docs:** **[CHILD_README.md](CHILD_README.md)**  
 - **Source:** [`src/child-origin-tracer.js`](src/child-origin-tracer.js)  
 - **Demo:** ![demo](docs/demo-child.gif)
@@ -33,9 +35,22 @@ Traces **who added/removed DOM children** (append/prepend/before/after, remove, 
 1) Open **Chrome DevTools → Sources → Snippets → New Snippet**  
 2) Name it with the filename (e.g., `class-origin-tracer.js`) and paste the source.  
 3) Click **Run (▶)**.  
-4) Optional: `debug()` to print origin stacks.
+4) Optional (per snippet):
+```js
+// Class
+__TRACEv17.help();     // one-page tips
+__TRACEv17.debug();    // show origin stacks
+__TRACEv17.filterPreset('aggressive'); // kill noisy churn
+__TRACEv17.set({ bridgeToParent: true }); // aggregate iframe logs at top
 
-> Privacy: nothing leaves your browser. It only logs to the Console.
+// Child
+__CHILDTRACEv1.help();
+__CHILDTRACEv1.debug();
+__CHILDTRACEv1.filterPreset('aggressive');
+__CHILDTRACEv1.set({ bridgeToParent: true });
+```
+
+Privacy: logs stay in your Console. Nothing is sent anywhere.
 
 ## License
 [MIT LICENSE](LICENSE)
