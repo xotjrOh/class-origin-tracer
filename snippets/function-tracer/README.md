@@ -1,7 +1,7 @@
 # function-tracer
 
-> Who called what, when, and from where.
-> A zero-setup DevTools snippet that traces same-origin app functions (not vendor libs), logs call order, Δ time, callee path, and caller `file:line:col`.
+> Who called what, when, and from where.  
+> A zero-setup DevTools snippet that traces same-origin app functions (not vendor libs), logs call order, Δ time, callee path, and caller `file:line:col`.  
 > Paste → Run → Watch the flow.
 
 ![demo](demo-function.gif)
@@ -61,7 +61,7 @@ __FNTRACE.cfg;       // current config object
     - `setTimeout` / `setInterval`
     - `requestAnimationFrame`
 
-> Already-registered callbacks before you run the snippet are held by the browser and won’t be wrapped.
+> Already-registered callbacks before you run the snippet are held by the browser and won’t be wrapped.  
 > For best coverage: **reload → run → interact**.
 
 ## Output format
@@ -110,7 +110,7 @@ const DEFAULT_CFG = {
 };
 ```
 
-> Tip: Add your own namespaces (e.g., namespaceHints: ["MY", "Project"]) for better coverage with less traversal. \
+> Tip: Add your own namespaces (e.g., namespaceHints: ["MY", "Project"]) for better coverage with less traversal.  
 > If your app code lives in a file that matches the library regex, relax excludeLibRe.
 
 ## Limits & notes
