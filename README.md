@@ -14,6 +14,7 @@ You can read more about [snippets at the Chrome Developer Tools documentation.](
 - Paste the code, name the snippet, and **click Run (▶).**
 
 ![snippet](docs/snippet.png)
+> Where the magic happens: paste your snippet here, hit Run, and see functions traced in real time.
 
 ## Snippets
 
