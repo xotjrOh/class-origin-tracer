@@ -19,9 +19,9 @@ You can read more about [snippets at the Chrome Developer Tools documentation.](
 
 ### DOM Origin & Debugging
 
-- [`class-origin-tracer.js`](snippets/class-origin-tracer/README.md) — Traces who changed your DOM classes; bundle/VM-friendly origins, built-in noise filters (interval/RAF/timeout), same-origin iframe auto-inject, optional bridge to top.
+- [`class-origin-tracer.js`](snippets/class-origin-tracer) — **Traces who changed your DOM classes**; bundle/VM-friendly origins, built-in noise filters (interval/RAF/timeout), same-origin iframe auto-inject, optional bridge to top.
 
-- [`child-origin-tracer.js`](snippets/child-origin-tracer/README.md) — Traces who added/removed DOM children (append/prepend/before/after, remove, inner/outerHTML, jQuery); noise filters + iframe support; ‘`+` / `−` first, `?` last-resort matching.
+- [`child-origin-tracer.js`](snippets/child-origin-tracer) — **Traces who added/removed DOM children** (append/prepend/before/after, remove, inner/outerHTML, jQuery); noise filters + iframe support; ‘`+` / `−` first, `?` last-resort matching.
 
 ## Contributing
 
