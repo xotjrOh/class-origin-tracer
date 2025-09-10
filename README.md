@@ -1,56 +1,31 @@
-# DOM Origin Tracers (DevTools snippets)
+# Chrome DevTools snippets
 
-Console-only, zero-setup **DevTools snippets** to reveal **who changed your DOM** — with best-guess origins that play nicely with bundlers and DevTools VM stacks.
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen)
 
 > Paste → Run → See origin.  
 > No build. No npm. No bookmarklet.
 
----
+## To Use DevTools Snippets in Chrome
+
+You can read more about [snippets at the Chrome Developer Tools documentation.](https://developer.chrome.com/docs/devtools/javascript/snippets?hl=en)
+- **Open Chrome devtools.**
+- Go to **“Sources → Snippets”**, and add whichever ones you want.
+- Paste the code, name the snippet, and **click Run (▶).**
+
+![snippet](docs/snippet.png)
 
 ## Snippets
 
-### 1) `class-origin-tracer.js`
-Finds who toggled your classes and where.
+### DOM Origin & Debugging
 
-- **Hooks:** `classList.*`, `setAttribute('class')`, `className` setter, SVG `baseVal`, jQuery `add/remove/toggleClass`, `attr('class')`, `prop('className')`
-- **Nice bits:** noise-killer (interval/RAF/timeout), repeat throttling, same-origin iframe auto-inject, optional bridge to top
-- **Docs:** **[CLASS_README.md](CLASS_README.md)**  
-- **Source:** [`src/class-origin-tracer.js`](src/class-origin-tracer.js)  
-- **Demo:** ![demo](docs/demo-class.gif)
+- [`class-origin-tracer.js`](snippets/class-origin-tracer/README.md) — Traces who changed your DOM classes; bundle/VM-friendly origins, built-in noise filters (interval/RAF/timeout), same-origin iframe auto-inject, optional bridge to top.
 
----
+- [`child-origin-tracer.js`](snippets/child-origin-tracer/README.md) — Traces who added/removed DOM children (append/prepend/before/after, remove, inner/outerHTML, jQuery); noise filters + iframe support; ‘`+` / `−` first, `?` last-resort matching.
 
-### 2) `child-origin-tracer.js`
-Catches who added/removed children (append/prepend/before/after, remove, inner/outerHTML, jQuery DOM ops).
+## Contributing
 
-- **Hooks:** `append/insertBefore/remove/replaceChild`, `Element.append/prepend/before/after`, `ChildNode.remove`, `innerHTML/outerHTML`, jQuery `append/prepend/before/after/html/remove/detach/empty`
-- **Nice bits:** noise-killer + throttling, ‘+ / −’ 우선 매칭 with '?' as last-resort fallback, iframe auto-inject + bridge
-- **Docs:** **[CHILD_README.md](CHILD_README.md)**  
-- **Source:** [`src/child-origin-tracer.js`](src/child-origin-tracer.js)  
-- **Demo:** ![demo](docs/demo-child.gif)
-
----
-
-## Quick install (DevTools Snippets)
-1) Open **Chrome DevTools → Sources → Snippets → New Snippet**  
-2) Name it with the filename (e.g., `class-origin-tracer.js`) and paste the source.  
-3) Click **Run (▶)**.  
-4) Optional (per snippet):
-```js
-// Class
-__TRACEv17.help();     // one-page tips
-__TRACEv17.debug();    // show origin stacks
-__TRACEv17.filterPreset('aggressive'); // kill noisy churn
-__TRACEv17.set({ bridgeToParent: true }); // aggregate iframe logs at top
-
-// Child
-__CHILDTRACEv1.help();
-__CHILDTRACEv1.debug();
-__CHILDTRACEv1.filterPreset('aggressive');
-__CHILDTRACEv1.set({ bridgeToParent: true });
-```
-
-Privacy: logs stay in your Console. Nothing is sent anywhere.
+PRs welcome! Keep each snippet single-file, run Prettier, and include a short repro/screenshot.
 
 ## License
 [MIT LICENSE](LICENSE)

@@ -4,9 +4,7 @@
 > A zero-setup DevTools snippet that traces **who changed your DOM classes** and where it happened.  
 > Paste → Run → See origin.
 
-![demo](docs/demo-class.gif)
-
----
+![demo](demo-class.gif)
 
 ## Why
 
@@ -23,12 +21,10 @@ This snippet hooks class mutations and prints, for each change:
 
 No build. No npm. No bookmarklet. Just a snippet.
 
----
-
 ## Quick start (DevTools Snippet)
 
 1. Open **Chrome DevTools → Sources → (left panel) Snippets → New Snippet**  
-2. Name it `class-origin-tracer.js` and paste the contents of [`src/class-origin-tracer.js`](src/class-origin-tracer.js).  
+2. Name it `class-origin-tracer.js` and paste the contents of [`class-origin-tracer.js`](class-origin-tracer.js).  
 3. Click **Run (▶)**.  
 4. Interact with the page; the Console shows class changes and their origins
 
@@ -40,8 +36,6 @@ __TRACEv17.min();                 // quiet mode
 __TRACEv17.filterPreset('aggressive'); // kill interval/RAF churn fast
 __TRACEv17.set({ bridgeToParent: true }); // aggregate iframe logs in TOP window
 ```
-
----
 
 ## What it hooks
 
@@ -150,7 +144,7 @@ const CFG = {
 
 ## Contributing
 
-- Single source file: src/class-origin-tracer.js (no build/min)
+- Single source file: snippets/class-origin-tracer/class-origin-tracer.js (no build/min)
 
 - Run Prettier before committing
 
@@ -158,4 +152,4 @@ const CFG = {
 
 ## LICENSE
 
-[MIT LICENSE](LICENSE)
+[MIT LICENSE](/LICENSE)

@@ -4,9 +4,7 @@
 > A zero-setup DevTools snippet that traces **who added/removed children** and where it happened.  
 > Paste → Run → See origin.
 
-![demo](docs/demo-child.gif)
-
----
+![demo](demo-child.gif)
 
 ## Why
 Modals, lists, carousels, templates—DOM nodes pop in/out, but the responsible line is unclear. This snippet hooks DOM & jQuery manipulation and prints:
@@ -21,11 +19,9 @@ Modals, lists, carousels, templates—DOM nodes pop in/out, but the responsible 
 
 No build. No npm. Just a snippet.
 
----
-
 ## Quick start (DevTools Snippet)
 1. Open **Chrome DevTools → Sources → Snippets → New Snippet**  
-2. Name it `child-origin-tracer.js` and paste the contents of [`src/child-origin-tracer.js`](src/child-origin-tracer.js).  
+2. Name it `child-origin-tracer.js` and paste the contents of [`child-origin-tracer.js`](child-origin-tracer.js).
 3. Click **Run (▶)**.  
 4. Interact with the page; the Console shows child mutations and their origins
 
@@ -37,7 +33,7 @@ __CHILDTRACEv1.min();                // quiet mode
 __CHILDTRACEv1.filterPreset('aggressive'); // kill interval/rAF churn fast
 __CHILDTRACEv1.set({ bridgeToParent: true }); // aggregate iframe logs in TOP window
 ```
----
+
 ## What it hooks
 - DOM: `appendChild` / `insertBefore` / `removeChild` / `replaceChild`,
 `Element.append` / `prepend` / `before` / `after`,
@@ -46,8 +42,6 @@ __CHILDTRACEv1.set({ bridgeToParent: true }); // aggregate iframe logs in TOP wi
 - jQuery: `append` / `prepend` / `before` / `after` / `html(set)` / `remove` / `detach` / `empty`
 
 > jQuery core/migrate frames are hidden by default (`skipJQCore: true`). Your app/plugins still show up.
-
----
 
 ## Noise & Dedupe (made for real UIs)
 
@@ -74,8 +68,6 @@ __CHILDTRACEv1.resetDedupe(); // clear throttling/repeat counters
 A signature is roughly: callsite (`url:line:col`) + parent element + a short preview of added/removed nodes.
 It keeps repeated noise from the same place out of your way.
 
----
-
 ## Iframes (same-origin)
 
 - Auto-inject into same-origin iframes is ON by default.
@@ -87,8 +79,6 @@ __CHILDTRACEv1.set({ bridgeToParent: true }); // forward logs to TOP; child cons
 
 > Cross-origin iframes cannot be inspected due to browser security.
 
----
-
 ## Matching policy (how origins are picked)
 
 - Score = API kind weight + sign match (+/−) + recency
@@ -97,8 +87,6 @@ __CHILDTRACEv1.set({ bridgeToParent: true }); // forward logs to TOP; child cons
 
 - Callsite extraction prefers bundle/VM/relative frames (webpack-internal://, blob:, file:, relative paths),
 skips extensions/devtools internal, jQuery core/migrate, and the snippet itself
-
----
 
 ## Commands
 
@@ -112,8 +100,6 @@ __CHILDTRACEv1.set({ windowMs: 2000 }); // widen op↔mutation matching window (
 __CHILDTRACEv1.resetDedupe();          // reset noise counters
 __CHILDTRACEv1.filterPreset('off');    // disable all filters
 ```
-
----
 
 ## Configuration (summary)
 
@@ -142,8 +128,6 @@ const CFG = {
 };
 ```
 
----
-
 ## Browser support & limits
 
 - Best on **Chromium** browsers (Chrome/Edge). Firefox/Safari stack formats may reduce callsite precision.
@@ -156,7 +140,7 @@ const CFG = {
 
 ## Contributing
 
-- Single source file: `src/child-origin-tracer.js` (no build/min)
+- Single source file: `snippets/child-origin-tracer/child-origin-tracer.js` (no build/min)
 
 - Run Prettier before committing
 
@@ -164,4 +148,4 @@ const CFG = {
 
 ## LICENSE
 
-[MIT LICENSE](LICENSE)
+[MIT LICENSE](/LICENSE)
