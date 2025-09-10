@@ -12,7 +12,7 @@ Console-only, zero-setup **DevTools snippets** to reveal **who changed your DOM*
 ### 1) `class-origin-tracer.js`
 Finds who toggled your classes and where.
 
-- **Hooks:** `classList.*`, `setAttribute('class')`, `className` setter, SVG `baseVal`, jQuery `add/remove/toggleClass`, attr('class'), prop('className')
+- **Hooks:** `classList.*`, `setAttribute('class')`, `className` setter, SVG `baseVal`, jQuery `add/remove/toggleClass`, `attr('class')`, `prop('className')`
 - **Nice bits:** noise-killer (interval/RAF/timeout), repeat throttling, same-origin iframe auto-inject, optional bridge to top
 - **Docs:** **[CLASS_README.md](CLASS_README.md)**  
 - **Source:** [`src/class-origin-tracer.js`](src/class-origin-tracer.js)  

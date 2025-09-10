@@ -74,7 +74,7 @@ __TRACEv17.set({
 __TRACEv17.resetDedupe(); // clear throttling/repeat counters
 ```
 
-A signature is roughly: callsite (url:line:col) + target element + set of class additions/removals.
+A signature is roughly: callsite (`url:line:col`) + target element + set of class additions/removals.
 It keeps repeated noise from the same place out of your way.
 
 ## Iframes (same-origin)
