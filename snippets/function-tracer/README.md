@@ -5,6 +5,7 @@
 > Paste → Run → Watch the flow.
 
 ![demo](demo-function.gif)
+> Demo: Tracing function calls on the w3schools site.
 
 ## Why
 

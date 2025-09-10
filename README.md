@@ -23,7 +23,7 @@ You can read more about [snippets at the Chrome Developer Tools documentation.](
 
 - [`child-origin-tracer.js`](snippets/child-origin-tracer) — **Traces who added/removed DOM children** (append/prepend/before/after, remove, inner/outerHTML, jQuery); noise filters + iframe support; ‘`+` / `−` first, `?` last-resort matching.
 
-- [`function-tracer.js`](snippets/function-tracer) — 
+- [`function-tracer.js`](snippets/function-tracer) — **Traces same-origin app functions** (not vendor libs); logs call order, Δ time, callee path, caller `file:line:col`; hooks events/timers/rAF; optional arg sketch; auto-start, no build.
 
 ## Contributing
 
