@@ -34,6 +34,9 @@ Child-change origin tracer v3 — noise-suppressed, iframe-aware, origin-focused
       summaryEvery: 50,           // print a 1-line summary every K suppressions
       reportSuppressed: false     // print suppression summaries
     },
+
+    // ---- New: control where the "origin" group appears (independent toggle)
+    nestOriginUnderChild: false,  // false => print origin as a separate top-level group
   };
 
   // deep-merge for CFG.set
@@ -555,6 +558,8 @@ Child-change origin tracer v3 — noise-suppressed, iframe-aware, origin-focused
 
       // local output (skip in child when bridging-only)
       if (!shouldBridgeOnly) {
+        let __originAfter = null; // print origin after closing [CHILD] when configured
+
         console.groupCollapsed(
           "[CHILD]",
           cssPath(target),
@@ -568,11 +573,19 @@ Child-change origin tracer v3 — noise-suppressed, iframe-aware, origin-focused
 
         if (pick && pick.origin) {
           logDecision(pick.considered);
-          logOrigin(pick.origin);
+          if (CFG.nestOriginUnderChild) {
+            // legacy: keep origin nested under [CHILD]
+            logOrigin(pick.origin);
+          } else {
+            // NEW: print as top-level group after closing [CHILD]
+            __originAfter = pick.origin;
+          }
         } else {
           console.log("%corigin", "color:#888", "(no matching frame — likely initial render / iframe / eval / other window)");
         }
         console.groupEnd();
+
+        if (__originAfter) logOrigin(__originAfter); // top-level, independent toggle
       }
 
       // parent forwarding

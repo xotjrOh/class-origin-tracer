@@ -33,8 +33,11 @@
       throttleMs: 250,           // same-signature logs within this window are suppressed
       maxRepeats: 8,             // show at most N times per signature, then suppress
       summaryEvery: 50,          // every K suppressed, print 1-line summary
-      reportSuppressed: false    // print suppression summaries
+      reportSuppressed: true     // print suppression summaries
     },
+
+    // ---- New: control where the "origin" group appears
+    nestOriginUnderClass: false,  // false => print origin as a separate top-level group
   };
 
   // deep-merge helper for CFG.set
@@ -194,7 +197,7 @@
           return list;
         },
       });
-      Object.defineProperty(proto, "classList", {
+    Object.defineProperty(proto, "classList", {
         ...Object.getOwnPropertyDescriptor(proto, "classList"),
         __wrapped: true,
       });
@@ -616,6 +619,8 @@
 
       // local console output (skip in child when bridging-only)
       if (!shouldBridgeOnly) {
+        let __originAfter = null; // collect to print after the [CLASS] group closes (top-level)
+
         console.groupCollapsed(
           "[CLASS]", cssPath(m.target), "\n→",
           added.length ? `+${added.join(",")}` : "",
@@ -638,12 +643,19 @@
             })));
             console.groupEnd();
           }
-          logOrigin(pick.origin);
+          if (CFG.nestOriginUnderClass) {
+            // legacy behavior: keep origin inside [CLASS]
+            logOrigin(pick.origin);
+          } else {
+            // NEW: print after closing the [CLASS] group (top-level)
+            __originAfter = pick.origin;
+          }
         } else {
           console.log("%corigin", "color:#888", "(no matching frame — likely initial render / other window / eval)");
         }
 
-        console.groupEnd();
+        console.groupEnd();                // close [CLASS]
+        if (__originAfter) logOrigin(__originAfter); // top-level origin group
       }
 
       // parent forwarding
